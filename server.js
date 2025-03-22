@@ -8,14 +8,14 @@ const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public"))); // Serve static assets
 
-// Default route serves index.html
+// Serve the admin dashboard
 app.get("/", (req, res) => {
-	res.sendFile(path.join(__dirname, "public", "index.html"));
+    res.sendFile(path.join(__dirname, "views", "dashboard.html"));
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 server.listen(PORT, () => {
-	console.log(`WebApp is running at http://localhost:${PORT}`);
+    console.log(`Server is running at http://localhost:${PORT}`);
 });
