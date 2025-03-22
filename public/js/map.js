@@ -1,4 +1,4 @@
-const ws = new WebSocket("ws://localhost:3000");
+const ws = new WebSocket("wss://gps-tracker-server-lls2.onrender.com");
 const map = L.map('map').setView([0, 0], 2);
 
 const markers = {};
