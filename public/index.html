@@ -5,105 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search & Rescue Map</title>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         #map { height: 100vh; position: relative; z-index: 1; }
         #user-list {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(255, 255, 255, 0.9); padding: 10px;
+            border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
             z-index: 1000;
         }
-        .floating-button {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            z-index: 1000;
+        .floating-button, .zoom-button {
+            position: absolute; padding: 8px 12px; border: none;
+            border-radius: 5px; cursor: pointer; z-index: 1000;
         }
-        .zoom-button {
-            margin-left: 10px;
-            padding: 4px 8px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        .floating-button { top: 10px; left: 10px; background: rgba(0, 0, 0, 0.7); color: white; }
+        .zoom-button { margin-left: 10px; background: #007bff; color: white; padding: 4px 8px; }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div id="user-list"><h3>Connected Users</h3><ul id="users"></ul></div>
+    <div id="user-list">
+        <h3>Connected Users</h3>
+        <ul id="users"></ul>
+    </div>
     <script>
         const ws = new WebSocket("wss://gps-tracker-server-lls2.onrender.com");
-        let map = L.map('map').setView([0, 0], 2);
+        const map = L.map('map').setView([0, 0], 2);
+        const markers = {}, polylines = {}, userColors = {};
+        
         L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-            attribution: '© Google Maps'
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '© Google Maps'
         }).addTo(map);
-
-        let markers = {};  // Store user markers
-        let polylines = {}; // Store user movement lines
-        let userColors = {}; // Assign unique colors to users
-
-        function getRandomColor() {
-            return "#" + Math.floor(Math.random()*16777215).toString(16);
-        }
-
+        
+        const getRandomColor = () => `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+        
         function zoomToUser(userId) {
-            if (markers[userId]) {
-                let latLng = markers[userId].getLatLng();
-                map.flyTo(latLng, 12, { animate: true, duration: 1.5 });
-            }
+            if (markers[userId]) map.flyTo(markers[userId].getLatLng(), 12, { animate: true, duration: 1.5 });
         }
-
+        
         function updateUserList() {
-            let userList = document.getElementById("users");
-            userList.innerHTML = "";
-            for (let userId in markers) {
-                let li = document.createElement("li");
-                let areaName = markers[userId].getPopup().getContent();
-                li.innerHTML = `<span style="color:${userColors[userId]}; font-weight:bold;">&#9679;</span> ${userId} - ${areaName} ` +
-                               `<button class="zoom-button" onclick="zoomToUser('${userId}')">Zoom</button>`;
-                userList.appendChild(li);
-            }
+            const userList = document.getElementById("users");
+            userList.innerHTML = Object.keys(markers).map(userId => {
+                return `<li><span style="color:${userColors[userId]}; font-weight:bold;">&#9679;</span> ${userId} ` +
+                       `<button class="zoom-button" onclick="zoomToUser('${userId}')">Zoom</button></li>`;
+            }).join('');
         }
-
-        ws.onmessage = (event) => {
-            let data = JSON.parse(event.data);
-            if (data.type === "updateMap") {
-                for (let userId in data.data) {
-                    let loc = data.data[userId];
+        
+        ws.onmessage = event => {
+            try {
+                const data = JSON.parse(event.data);
+                if (typeof data.data !== "object") return console.error("Unexpected data format", data);
+                
+                Object.entries(data.data).forEach(([userId, locations]) => {
+                    const loc = Array.isArray(locations) ? locations[locations.length - 1] : locations;
+                    if (!loc || typeof loc.latitude !== "number" || typeof loc.longitude !== "number") return;
+                    
                     if (!userColors[userId]) userColors[userId] = getRandomColor();
-
+                    
                     if (!markers[userId]) {
                         markers[userId] = L.circleMarker([loc.latitude, loc.longitude], {
-                            color: userColors[userId],
-                            radius: 6,
-                            fillOpacity: 1
-                        }).addTo(map).bindPopup(`${loc.searchingAreaName}`);
-
+                            color: userColors[userId], radius: 6, fillOpacity: 1
+                        }).addTo(map).bindPopup(loc.timestamp || "Unknown");
+                        
                         markers[userId].on('click', () => zoomToUser(userId));
                     } else {
-                        let prevLatLng = markers[userId].getLatLng();
+                        const prevLatLng = markers[userId].getLatLng();
                         markers[userId].setLatLng([loc.latitude, loc.longitude]);
                         
                         if (!polylines[userId]) polylines[userId] = [];
-                        let polyline = L.polyline([prevLatLng, [loc.latitude, loc.longitude]], { color: userColors[userId] }).addTo(map);
-                        polylines[userId].push(polyline);
+                        polylines[userId].push(L.polyline([prevLatLng, [loc.latitude, loc.longitude]], { color: userColors[userId] }).addTo(map));
                     }
-                }
+                });
+                
                 updateUserList();
+            } catch (error) {
+                console.error("Error processing WebSocket message:", error);
             }
         };
     </script>
