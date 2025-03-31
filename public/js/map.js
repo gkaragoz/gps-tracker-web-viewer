@@ -50,7 +50,8 @@ function setMapView(viewType) {
 
 function zoomToUser(userId) {
     if (markers[userId]) {
-        map.flyTo(markers[userId].getLatLng(), 16, { animate: true, duration: 1.5 });
+        const bounds = L.latLngBounds(userPaths[userId]); // Create bounds from the user's path
+        map.fitBounds(bounds, { animate: true, duration: 1.5 }); // Zoom to the bounds with animation
     }
 }
 
@@ -128,6 +129,7 @@ const loadKML = (file) => {
         try {
             const kmlLayer = new L.KML(kml); // Use the leaflet-kml plugin
             kmlLayer.on("loaded", () => {
+                console.log("KML loaded successfully");
                 map.fitBounds(kmlLayer.getBounds()); // Fit map to KML bounds
             });
             map.addLayer(kmlLayer);
@@ -175,8 +177,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 listItem.textContent = kmlName;
                 listItem.style.cursor = "pointer";
                 listItem.addEventListener("click", function () {
-                    const bounds = kmlLayer.getBounds();
-                    map.fitBounds(bounds); // Zoom to the KML layer
+                    map.fitBounds(kmlLayer.getBounds()); // Zoom to the KML layer
                 });
                 kmlFilesList.appendChild(listItem);
             };
