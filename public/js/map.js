@@ -112,3 +112,45 @@ document.getElementById("kmlUpload").addEventListener("change", (event) => {
         alert("Please upload a valid .kml file");
     }
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    if (!map) { // Check if the map is already initialized
+        map = L.map("map").setView([0, 0], 2); // Initialize map
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+        }).addTo(map);
+    }
+
+    const kmlUpload = document.getElementById("kmlUpload");
+    const kmlFilesList = document.getElementById("kmlFiles");
+
+    kmlUpload.addEventListener("change", function (event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const kmlText = e.target.result;
+                const parser = new DOMParser();
+                const kmlDoc = parser.parseFromString(kmlText, "application/xml");
+
+                // Parse KML and add to map
+                const kmlLayer = new L.KML(kmlDoc);
+                map.addLayer(kmlLayer);
+
+                // Get the name of the KML file from the <name> tag
+                const kmlName = kmlDoc.querySelector("name")?.textContent || file.name;
+
+                // Add the KML file to the list
+                const listItem = document.createElement("li");
+                listItem.textContent = kmlName;
+                listItem.style.cursor = "pointer";
+                listItem.addEventListener("click", function () {
+                    const bounds = kmlLayer.getBounds();
+                    map.fitBounds(bounds); // Zoom to the KML layer
+                });
+                kmlFilesList.appendChild(listItem);
+            };
+            reader.readAsText(file);
+        }
+    });
+});
