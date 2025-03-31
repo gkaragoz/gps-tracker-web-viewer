@@ -14,24 +14,6 @@ html, body {
     overflow: hidden;
 }
 
-#user-list {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 10px;
-    border-radius: 8px;
-    margin-top: 10px;
-}
-
-#user-list ul {
-    list-style: none;
-    padding: 0;
-}
-
-#user-list li {
-    display: flex;
-    justify-content: space-between;
-    padding: 5px 0;
-}
-
 .btn-locate {
     background: #1DB954;
     border: none;
@@ -42,4 +24,35 @@ html, body {
 
 .btn-locate:hover {
     background: #17a74a;
+}
+
+/* Scrollable KML List */
+#kml-list {
+    max-height: 300px; /* Set the maximum height */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding-right: 10px; /* Add padding to avoid scrollbar overlap */
+}
+
+/* Scrollable User List */
+#user-list {
+    max-height: 300px; /* Set the maximum height */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding-right: 10px; /* Add padding to avoid scrollbar overlap */
+}
+
+/* Optional: Customize scrollbar appearance */
+#kml-list::-webkit-scrollbar,
+#user-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+#kml-list::-webkit-scrollbar-thumb,
+#user-list::-webkit-scrollbar-thumb {
+    background-color: #6c757d; /* Dark gray scrollbar */
+    border-radius: 4px;
+}
+
+#kml-list::-webkit-scrollbar-thumb:hover,
+#user-list::-webkit-scrollbar-thumb:hover {
+    background-color: #495057; /* Slightly darker on hover */
 }
