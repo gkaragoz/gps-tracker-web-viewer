@@ -76,20 +76,21 @@ class MapManager {
     updateUserList() {
         const userTableBody = document.querySelector("#users tbody");
         userTableBody.innerHTML = ""; // Clear existing rows
-
+    
         Object.keys(this.markers).forEach((userId, index) => {
             const color = this.userColors[userId];
             const marker = this.markers[userId];
-
+            const lastUpdate = this.userPaths[userId]?.lastUpdate || "N/A"; // Get last update time or default to "N/A"
+    
             // Create a table row
             const row = document.createElement("tr");
             row.dataset.userId = userId; // Add data-user-id attribute
-
+    
             // Number column
             const numberCell = document.createElement("td");
             numberCell.textContent = index + 1; // Row index
             row.appendChild(numberCell);
-
+    
             // Visibility column
             const visibilityCell = document.createElement("td");
             const checkbox = document.createElement("input");
@@ -100,32 +101,37 @@ class MapManager {
             });
             visibilityCell.appendChild(checkbox);
             row.appendChild(visibilityCell);
-
+    
             // Color column
             const colorCell = document.createElement("td");
             colorCell.innerHTML = `<span style="color:${color}; font-weight:bold;">&#9679;</span>`;
             row.appendChild(colorCell);
-
+    
             // Uid column
             const uidCell = document.createElement("td");
             uidCell.textContent = userId;
             row.appendChild(uidCell);
-
+    
+            // Last update column
+            const lastUpdateCell = document.createElement("td");
+            lastUpdateCell.textContent = lastUpdate;
+            row.appendChild(lastUpdateCell);
+    
             // Add event listeners for row interactions
             row.addEventListener("mouseover", () => {
                 row.classList.add("table-active"); // Highlight row
             });
-
+    
             row.addEventListener("mouseout", () => {
                 row.classList.remove("table-active"); // Remove highlight
             });
-
+    
             row.addEventListener("click", (event) => {
                 if (!event.target.matches('input[type="checkbox"]')) {
                     this.zoomToUser(userId); // Zoom to user on row click
                 }
             });
-
+    
             // Append the row to the table body
             userTableBody.appendChild(row);
         });
@@ -147,12 +153,13 @@ class MapManager {
 
     handleInitialData(data) {
         data.forEach(entry => {
-            const { userId, latitude, longitude } = entry;
+            const { userId, latitude, longitude, timestamp } = entry; // Include timestamp from data
             if (!this.userPaths[userId]) this.userPaths[userId] = [];
             this.userPaths[userId].push([latitude, longitude]);
+            this.userPaths[userId].lastUpdate = timestamp || "N/A"; // Store the last update time from the data
             if (!this.userColors[userId]) this.userColors[userId] = this.getRandomColor();
         });
-
+    
         Object.keys(this.userPaths).forEach(userId => {
             const path = this.userPaths[userId];
             if (path.length > 1) {
@@ -162,21 +169,22 @@ class MapManager {
             this.markers[userId] = L.circleMarker(lastPosition, {
                 color: this.userColors[userId], radius: 6, fillOpacity: 1
             }).addTo(this.map).bindPopup(`${userId}`);
-
+    
             this.markers[userId].on('click', () => this.zoomToUser(userId));
         });
-
+    
         this.updateUserList();
     }
 
     handleUserUpdate(data) {
-        const { userId, latitude, longitude } = data;
+        const { userId, latitude, longitude, timestamp } = data;
         if (!latitude || !longitude) {
-            console.error(`❌ Invalid location data for ${userId}`, latitude, longitude);
+            console.error(`❌ Invalid location data for ${userId}`, latitude, longitude, timestamp);
             return;
         }
         if (!this.userPaths[userId]) this.userPaths[userId] = [];
         this.userPaths[userId].push([latitude, longitude]);
+        this.userPaths[userId].lastUpdate = timestamp || "N/A";
         if (!this.userColors[userId]) this.userColors[userId] = this.getRandomColor();
 
         if (!this.markers[userId]) {
