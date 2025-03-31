@@ -58,17 +58,62 @@ class MapManager {
     }
 
     updateUserList() {
-        const userList = document.getElementById("users");
-        userList.innerHTML = Object.keys(this.markers).map(userId => {
+        const userTableBody = document.querySelector("#users tbody");
+        userTableBody.innerHTML = ""; // Clear existing rows
+    
+        Object.keys(this.markers).forEach((userId, index) => {
             const color = this.userColors[userId];
             const marker = this.markers[userId];
-
-            // Create a checkbox for toggling visibility
-            const checkbox = `<input type="checkbox" checked onchange="mapManager.toggleUserVisibility('${userId}', this.checked)" style="margin-right: 8px;">`;
-
-            return `<li>${checkbox}<span style="color:${color}; font-weight:bold;">&#9679;</span> ` +
-                `<button class="btn-locate" onclick="mapManager.zoomToUser('${userId}')">${userId}</button></li>`;
-        }).join('');
+    
+            // Create a table row
+            const row = document.createElement("tr");
+            row.dataset.userId = userId; // Add data-user-id attribute
+    
+            // Id column
+            const idCell = document.createElement("td");
+            idCell.textContent = index + 1; // Row index
+            row.appendChild(idCell);
+    
+            // Visibility column
+            const visibilityCell = document.createElement("td");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = true;
+            checkbox.addEventListener("change", () => {
+                this.toggleUserVisibility(userId, checkbox.checked);
+            });
+            visibilityCell.appendChild(checkbox);
+            row.appendChild(visibilityCell);
+    
+            // Uid column
+            const uidCell = document.createElement("td");
+            uidCell.textContent = userId;
+            row.appendChild(uidCell);
+    
+            // Color column
+            const colorCell = document.createElement("td");
+            colorCell.innerHTML = `<span style="color:${color}; font-weight:bold;">&#9679;</span>`;
+            row.appendChild(colorCell);
+    
+            // Add event listeners for row interactions
+            row.addEventListener("mouseover", () => {
+                row.classList.add("table-active"); // Highlight row
+            });
+    
+            row.addEventListener("mouseout", () => {
+                row.classList.remove("table-active"); // Remove highlight
+            });
+    
+            row.addEventListener("click", (event) => {
+                if (!event.target.matches('input[type="checkbox"]')) {
+                    const bounds = L.latLngBounds(this.userPaths[userId]);
+                    this.map.fitBounds(bounds, { animate: true, duration: 1.5 });
+                }
+            });
+    
+            // Append the row to the table body
+            userTableBody.appendChild(row);
+        });
     }
 
     toggleUserVisibility(userId, isVisible) {
@@ -180,26 +225,32 @@ class MapManager {
     addKMLToList(kmlName, kmlLayer) {
         const kmlFilesList = document.getElementById("kmlFiles");
         const listItem = document.createElement("li");
-
+        listItem.classList.add("kml-list-item"); // Add CSS class
+    
         // Create a checkbox for toggling visibility
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = true;
-        checkbox.style.marginRight = "8px";
-        checkbox.addEventListener("change", () => {
+        checkbox.classList.add("kml-checkbox"); // Add CSS class
+        checkbox.addEventListener("change", (event) => {
+            event.stopPropagation(); // Prevent the click event on the list item from firing
             if (checkbox.checked) {
                 this.map.addLayer(kmlLayer); // Show the KML layer
             } else {
                 this.map.removeLayer(kmlLayer); // Hide the KML layer
             }
         });
-
+    
+        // Add the checkbox and text to the list item
         listItem.appendChild(checkbox);
         listItem.appendChild(document.createTextNode(kmlName));
-        listItem.style.cursor = "pointer";
+    
+        // Add a click event to zoom to the KML layer
         listItem.addEventListener("click", () => {
             this.map.fitBounds(kmlLayer.getBounds()); // Zoom to the KML layer
         });
+    
+        // Append the list item to the KML files list
         kmlFilesList.appendChild(listItem);
     }
 

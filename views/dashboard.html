@@ -26,8 +26,20 @@
                 <ul id="kmlFiles" class="list-unstyled"></ul>
             </div>
             <div id="user-list" class="mt-3">
-                <h5>Connected Users</h5>
-                <ul id="users" aria-live="polite" class="list-unstyled"></ul>
+                <h5>Users</h5>
+                <table id="users" class="table table-dark table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Visibility</th>
+                            <th>Uid</th>
+                            <th>Color</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- User rows will be dynamically populated here -->
+                    </tbody>
+                </table>
             </div>
         </div>
         
