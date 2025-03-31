@@ -8,6 +8,7 @@ class MapManager {
         this.userColors = {};
         this.userPaths = {};
         this.currentTileLayer = null;
+        this.kmlFiles = [];
 
         this.initWebSocket();
     }
@@ -60,20 +61,20 @@ class MapManager {
     updateUserList() {
         const userTableBody = document.querySelector("#users tbody");
         userTableBody.innerHTML = ""; // Clear existing rows
-    
+
         Object.keys(this.markers).forEach((userId, index) => {
             const color = this.userColors[userId];
             const marker = this.markers[userId];
-    
+
             // Create a table row
             const row = document.createElement("tr");
             row.dataset.userId = userId; // Add data-user-id attribute
-    
-            // Id column
-            const idCell = document.createElement("td");
-            idCell.textContent = index + 1; // Row index
-            row.appendChild(idCell);
-    
+
+            // Number column
+            const numberCell = document.createElement("td");
+            numberCell.textContent = index + 1; // Row index
+            row.appendChild(numberCell);
+
             // Visibility column
             const visibilityCell = document.createElement("td");
             const checkbox = document.createElement("input");
@@ -84,33 +85,33 @@ class MapManager {
             });
             visibilityCell.appendChild(checkbox);
             row.appendChild(visibilityCell);
-    
-            // Uid column
-            const uidCell = document.createElement("td");
-            uidCell.textContent = userId;
-            row.appendChild(uidCell);
-    
+
             // Color column
             const colorCell = document.createElement("td");
             colorCell.innerHTML = `<span style="color:${color}; font-weight:bold;">&#9679;</span>`;
             row.appendChild(colorCell);
-    
+
+            // Uid column
+            const uidCell = document.createElement("td");
+            uidCell.textContent = userId;
+            row.appendChild(uidCell);
+
             // Add event listeners for row interactions
             row.addEventListener("mouseover", () => {
                 row.classList.add("table-active"); // Highlight row
             });
-    
+
             row.addEventListener("mouseout", () => {
                 row.classList.remove("table-active"); // Remove highlight
             });
-    
+
             row.addEventListener("click", (event) => {
                 if (!event.target.matches('input[type="checkbox"]')) {
                     const bounds = L.latLngBounds(this.userPaths[userId]);
                     this.map.fitBounds(bounds, { animate: true, duration: 1.5 });
                 }
             });
-    
+
             // Append the row to the table body
             userTableBody.appendChild(row);
         });
@@ -199,6 +200,20 @@ class MapManager {
         };
     }
 
+    toggleKMLVisibility(kmlIndex, isVisible) {
+        const kmlFile = this.kmlFiles[kmlIndex];
+        if (!kmlFile || !kmlFile.layer) {
+            console.error(`KML file at index ${kmlIndex} not found or invalid.`);
+            return;
+        }
+
+        if (isVisible) {
+            this.map.addLayer(kmlFile.layer); // Show the KML layer
+        } else {
+            this.map.removeLayer(kmlFile.layer); // Hide the KML layer
+        }
+    }
+
     loadKML(file) {
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -209,11 +224,14 @@ class MapManager {
                 this.map.addLayer(kmlLayer);
                 this.map.fitBounds(kmlLayer.getBounds());
 
-                // Get the name of the KML file from the <name> tag
+                // Get the name of the KML file from the <name> tag or fallback to file name
                 const kmlName = kml.querySelector("name")?.textContent || file.name;
 
-                // Add the KML file to the list
-                this.addKMLToList(kmlName, kmlLayer);
+                // Store the KML layer and name for future reference
+                this.kmlFiles.push({ name: kmlName, layer: kmlLayer, kml });
+
+                // Add the KML file to the table
+                this.populateKMLTable(kml, kmlName);
             } catch (error) {
                 console.error("Error loading KML:", error);
                 alert("Failed to load the KML file. Please ensure the file is valid.");
@@ -222,41 +240,81 @@ class MapManager {
         reader.readAsText(file);
     }
 
-    addKMLToList(kmlName, kmlLayer) {
-        const kmlFilesList = document.getElementById("kmlFiles");
-        const listItem = document.createElement("li");
-        listItem.classList.add("kml-list-item"); // Add CSS class
-    
-        // Create a checkbox for toggling visibility
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = true;
-        checkbox.classList.add("kml-checkbox"); // Add CSS class
-        checkbox.addEventListener("change", (event) => {
-            event.stopPropagation(); // Prevent the click event on the list item from firing
-            if (checkbox.checked) {
-                this.map.addLayer(kmlLayer); // Show the KML layer
-            } else {
-                this.map.removeLayer(kmlLayer); // Hide the KML layer
-            }
+    populateKMLTable() {
+        const kmlTableBody = document.querySelector("#kml-table tbody");
+        kmlTableBody.innerHTML = ""; // Clear existing rows to avoid duplicates
+
+        // Iterate over all KML files stored in this.kmlFiles
+        this.kmlFiles.forEach((kmlFile, fileIndex) => {
+            const placemarks = kmlFile.kml.getElementsByTagName("Placemark");
+
+            Array.from(placemarks).forEach((placemark, index) => {
+                const id = placemark.getAttribute("id") || `Placemark-${fileIndex + 1}-${index + 1}`;
+                const name = placemark.getElementsByTagName("name")[0]?.textContent || "N/A";
+
+                // Create a table row
+                const row = document.createElement("tr");
+                row.dataset.placemarkId = id; // Add data-placemark-id attribute
+
+                // Number column
+                const numberCell = document.createElement("td");
+                numberCell.textContent = kmlTableBody.rows.length + 1; // Increment row index
+                row.appendChild(numberCell);
+
+                // Visibility column
+                const visibilityCell = document.createElement("td");
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.checked = true; // Default to visible
+                checkbox.addEventListener("change", () => {
+                    this.toggleKMLVisibility(fileIndex, checkbox.checked);
+                });
+                visibilityCell.appendChild(checkbox);
+                row.appendChild(visibilityCell);
+
+                // Name column
+                const nameCell = document.createElement("td");
+                nameCell.textContent = name;
+                row.appendChild(nameCell);
+
+                // Add event listeners for row interactions
+                row.addEventListener("mouseover", () => {
+                    row.classList.add("table-active"); // Highlight row
+                });
+
+                row.addEventListener("mouseout", () => {
+                    row.classList.remove("table-active"); // Remove highlight
+                });
+
+                row.addEventListener("click", (event) => {
+                    // Prevent click event if the target is the checkbox
+                    if (event.target.matches('input[type="checkbox"]')) {
+                        return;
+                    }
+
+                    // Fit bounds to the placemark area
+                    const coordinates = placemark.getElementsByTagName("coordinates")[0]?.textContent.trim();
+                    if (coordinates) {
+                        const latLngs = coordinates.split(" ").map(coord => {
+                            const [lng, lat] = coord.split(",").map(Number);
+                            return [lat, lng];
+                        });
+
+                        if (latLngs.length > 0) {
+                            const bounds = L.latLngBounds(latLngs);
+                            this.map.fitBounds(bounds, { animate: true, duration: 1.5 });
+                        }
+                    }
+                });
+
+                // Append the row to the table body
+                kmlTableBody.appendChild(row);
+            });
         });
-    
-        // Add the checkbox and text to the list item
-        listItem.appendChild(checkbox);
-        listItem.appendChild(document.createTextNode(kmlName));
-    
-        // Add a click event to zoom to the KML layer
-        listItem.addEventListener("click", () => {
-            this.map.fitBounds(kmlLayer.getBounds()); // Zoom to the KML layer
-        });
-    
-        // Append the list item to the KML files list
-        kmlFilesList.appendChild(listItem);
     }
 
-    initKMLUpload(kmlUploadId, kmlFilesListId) {
+    initKMLUpload(kmlUploadId) {
         const kmlUpload = document.getElementById(kmlUploadId);
-        const kmlFilesList = document.getElementById(kmlFilesListId);
 
         kmlUpload.addEventListener("change", (event) => {
             const file = event.target.files[0];

@@ -43,15 +43,3 @@ html, body {
 .btn-locate:hover {
     background: #17a74a;
 }
-
-/* Style for KML list items */
-.kml-list-item {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-}
-
-/* Style for KML checkboxes */
-.kml-checkbox {
-    margin-right: 8px;
-}
