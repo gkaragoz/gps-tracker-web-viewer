@@ -60,9 +60,29 @@ class MapManager {
     updateUserList() {
         const userList = document.getElementById("users");
         userList.innerHTML = Object.keys(this.markers).map(userId => {
-            return `<li><span style="color:${this.userColors[userId]}; font-weight:bold;">&#9679;</span> ` +
+            const color = this.userColors[userId];
+            const marker = this.markers[userId];
+
+            // Create a checkbox for toggling visibility
+            const checkbox = `<input type="checkbox" checked onchange="mapManager.toggleUserVisibility('${userId}', this.checked)" style="margin-right: 8px;">`;
+
+            return `<li>${checkbox}<span style="color:${color}; font-weight:bold;">&#9679;</span> ` +
                 `<button class="btn-locate" onclick="mapManager.zoomToUser('${userId}')">${userId}</button></li>`;
         }).join('');
+    }
+
+    toggleUserVisibility(userId, isVisible) {
+        if (isVisible) {
+            this.map.addLayer(this.markers[userId]); // Show the marker
+            if (this.polylines[userId]) {
+                this.map.addLayer(this.polylines[userId]); // Show the polyline
+            }
+        } else {
+            this.map.removeLayer(this.markers[userId]); // Hide the marker
+            if (this.polylines[userId]) {
+                this.map.removeLayer(this.polylines[userId]); // Hide the polyline
+            }
+        }
     }
 
     handleInitialData(data) {
@@ -160,7 +180,22 @@ class MapManager {
     addKMLToList(kmlName, kmlLayer) {
         const kmlFilesList = document.getElementById("kmlFiles");
         const listItem = document.createElement("li");
-        listItem.textContent = kmlName;
+
+        // Create a checkbox for toggling visibility
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = true;
+        checkbox.style.marginRight = "8px";
+        checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+                this.map.addLayer(kmlLayer); // Show the KML layer
+            } else {
+                this.map.removeLayer(kmlLayer); // Hide the KML layer
+            }
+        });
+
+        listItem.appendChild(checkbox);
+        listItem.appendChild(document.createTextNode(kmlName));
         listItem.style.cursor = "pointer";
         listItem.addEventListener("click", () => {
             this.map.fitBounds(kmlLayer.getBounds()); // Zoom to the KML layer
