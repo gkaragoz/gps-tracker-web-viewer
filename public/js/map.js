@@ -17,6 +17,15 @@ class MapManager {
         return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
     }
 
+    getDynamicPadding() {
+        const sidebar = document.querySelector('.sidebar'); // Adjust selector if needed
+        const sidebarWidth = sidebar ? sidebar.offsetWidth : 0;
+        return {
+            paddingTopLeft: [-sidebarWidth, 0], // Sidebar width affects the left padding
+            paddingBottomRight: [0, 0] // No padding on the bottom-right
+        };
+    }
+
     setMapView(viewType) {
         if (this.currentTileLayer) {
             this.map.removeLayer(this.currentTileLayer);
@@ -52,9 +61,15 @@ class MapManager {
     }
 
     zoomToUser(userId) {
-        if (this.markers[userId]) {
-            const bounds = L.latLngBounds(this.userPaths[userId]);
-            this.map.fitBounds(bounds, { animate: true, duration: 1.5 });
+        if (this.markers[userId] && this.userPaths[userId]?.length > 0) {
+            const lastPoint = this.userPaths[userId][this.userPaths[userId].length - 1];
+            const bounds = L.latLngBounds([lastPoint]);
+            this.map.fitBounds(bounds, {
+                paddingTopLeft: this.getDynamicPadding().paddingTopLeft,
+                paddingBottomRight: this.getDynamicPadding().paddingBottomRight,
+                maxZoom: 19, // Set maximum zoom level
+                animate: true
+            });
         }
     }
 
@@ -107,8 +122,7 @@ class MapManager {
 
             row.addEventListener("click", (event) => {
                 if (!event.target.matches('input[type="checkbox"]')) {
-                    const bounds = L.latLngBounds(this.userPaths[userId]);
-                    this.map.fitBounds(bounds, { animate: true, duration: 1.5 });
+                    this.zoomToUser(userId); // Zoom to user on row click
                 }
             });
 
@@ -262,7 +276,9 @@ class MapManager {
                             combinedBounds.extend(layer.getLatLng());
                         }
                     });
-                    this.map.fitBounds(combinedBounds);
+                
+                    // Use dynamic padding
+                    this.map.fitBounds(combinedBounds, this.getDynamicPadding());
                 }
 
                 // Populate the KML table
@@ -320,22 +336,18 @@ class MapManager {
                 });
     
                 row.addEventListener("click", (event) => {
-                    // Prevent click event if the target is the checkbox
-                    if (event.target.matches('input[type="checkbox"]')) {
-                        return;
-                    }
-    
-                    // Fit bounds to the placemark area
-                    const coordinates = placemark.getElementsByTagName("coordinates")[0]?.textContent.trim();
-                    if (coordinates) {
-                        const latLngs = coordinates.split(" ").map(coord => {
-                            const [lng, lat] = coord.split(",").map(Number);
-                            return [lat, lng];
-                        });
-    
-                        if (latLngs.length > 0) {
-                            const bounds = L.latLngBounds(latLngs);
-                            this.map.fitBounds(bounds, { animate: true, duration: 1.5 });
+                    if (!event.target.matches('input[type="checkbox"]')) {
+                        const coordinates = placemark.getElementsByTagName("coordinates")[0]?.textContent.trim();
+                        if (coordinates) {
+                            const latLngs = coordinates.split(" ").map(coord => {
+                                const [lng, lat] = coord.split(",").map(Number);
+                                return [lat, lng];
+                            });
+                
+                            if (latLngs.length > 0) {
+                                const bounds = L.latLngBounds(latLngs);
+                                this.map.fitBounds(bounds, this.getDynamicPadding());
+                            }
                         }
                     }
                 });
