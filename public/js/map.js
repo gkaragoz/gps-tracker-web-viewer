@@ -35,25 +35,18 @@ ws.onmessage = event => {
         if (data.type === "initialData") {
             console.log("📤 Initial data received:", data.data);
             
-            // Process all past locations for users
             data.data.forEach(entry => {
                 const { userId, latitude, longitude, timestamp } = entry;
-
                 if (!userPaths[userId]) userPaths[userId] = [];
-                userPaths[userId].push([latitude, longitude]); // Store in path history
-                
+                userPaths[userId].push([latitude, longitude]);
                 if (!userColors[userId]) userColors[userId] = getRandomColor();
             });
 
-            // After storing all locations, draw paths for each user
             Object.keys(userPaths).forEach(userId => {
                 const path = userPaths[userId];
-
                 if (path.length > 1) {
                     polylines[userId] = L.polyline(path, { color: userColors[userId] }).addTo(map);
                 }
-
-                // Place the latest marker for each user
                 const lastPosition = path[path.length - 1];
                 markers[userId] = L.circleMarker(lastPosition, {
                     color: userColors[userId], radius: 6, fillOpacity: 1
@@ -61,45 +54,61 @@ ws.onmessage = event => {
 
                 markers[userId].on('click', () => zoomToUser(userId));
             });
-
             updateUserList();
         }
-
         else if (data.type === "userUpdate") {
             console.log("📍 Live update received:", data.data);
             let { userId, latitude, longitude, timestamp } = data.data;
-
             if (!latitude || !longitude) {
                 console.error(`❌ Invalid location data for ${userId}`, latitude, longitude, timestamp);
                 return;
             }
-
             if (!userPaths[userId]) userPaths[userId] = [];
-            userPaths[userId].push([latitude, longitude]); // Add to path history
-
+            userPaths[userId].push([latitude, longitude]);
             if (!userColors[userId]) userColors[userId] = getRandomColor();
-
             if (!markers[userId]) {
                 markers[userId] = L.circleMarker([latitude, longitude], {
                     color: userColors[userId], radius: 6, fillOpacity: 1
                 }).addTo(map).bindPopup(`${userId}`);
-
                 markers[userId].on('click', () => zoomToUser(userId));
             } else {
-                const prevLatLng = markers[userId].getLatLng();
                 markers[userId].setLatLng([latitude, longitude]);
-
                 if (userPaths[userId].length > 1) {
-                    // Remove old polyline and redraw new one with updated path
                     if (polylines[userId]) map.removeLayer(polylines[userId]);
                     polylines[userId] = L.polyline(userPaths[userId], { color: userColors[userId] }).addTo(map);
                 }
             }
-
             updateUserList();
         }
-
     } catch (error) {
         console.error("❌ Error processing WebSocket message:", error);
     }
 };
+
+const loadKML = (file) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const parser = new DOMParser();
+        const kml = parser.parseFromString(event.target.result, "text/xml");
+        try {
+            const kmlLayer = new L.KML(kml); // Use the leaflet-kml plugin
+            kmlLayer.on("loaded", () => {
+                map.fitBounds(kmlLayer.getBounds()); // Fit map to KML bounds
+            });
+            map.addLayer(kmlLayer);
+        } catch (error) {
+            console.error("Error loading KML:", error);
+            alert("Failed to load the KML file. Please ensure the file is valid.");
+        }
+    };
+    reader.readAsText(file);
+};
+
+document.getElementById("kmlUpload").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (file && file.name.endsWith(".kml")) {
+        loadKML(file);
+    } else {
+        alert("Please upload a valid .kml file");
+    }
+});
