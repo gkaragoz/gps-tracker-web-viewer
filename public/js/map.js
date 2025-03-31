@@ -6,12 +6,47 @@ const polylines = {};
 const userColors = {};
 const userPaths = {}; // Store each user's full path
 
-L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: '© Google Maps'
-}).addTo(map);
+let currentTileLayer;
 
 const getRandomColor = () => `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+
+function setMapView(viewType) {
+    // Remove the current tile layer if it exists
+    if (currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+    }
+
+    // Define tile layers for different views
+    let tileLayerUrl;
+    let tileLayerOptions = {
+        attribution: '© OpenStreetMap contributors'
+    };
+
+    switch (viewType) {
+        case 'satellite':
+            tileLayerUrl = 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
+            tileLayerOptions.subdomains = ['mt0', 'mt1', 'mt2', 'mt3'];
+            break;
+        case 'street':
+            tileLayerUrl = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
+            break;
+        case 'terrain':
+            tileLayerUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+            break;
+        default:
+            console.error('Unknown map view type:', viewType);
+            return;
+    }
+
+    // Add the new tile layer
+    currentTileLayer = L.tileLayer(tileLayerUrl, tileLayerOptions).addTo(map);
+
+    // Update the dropdown button text
+    const dropdownButton = document.querySelector('.btn-group .dropdown-toggle');
+    if (dropdownButton) {
+        dropdownButton.textContent = `${viewType.charAt(0).toUpperCase() + viewType.slice(1)} View`;
+    }
+}
 
 function zoomToUser(userId) {
     if (markers[userId]) {
@@ -114,12 +149,7 @@ document.getElementById("kmlUpload").addEventListener("change", (event) => {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-    if (!map) { // Check if the map is already initialized
-        map = L.map("map").setView([0, 0], 2); // Initialize map
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 19,
-        }).addTo(map);
-    }
+    setMapView('satellite'); // Default view
 
     const kmlUpload = document.getElementById("kmlUpload");
     const kmlFilesList = document.getElementById("kmlFiles");
