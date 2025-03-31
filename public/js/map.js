@@ -252,8 +252,18 @@ class MapManager {
                 // Add all placemark layers to the map
                 placemarkLayers.forEach(layer => this.map.addLayer(layer));
 
-                // Fit the map to the bounds of the KML layer
-                this.map.fitBounds(placemarkLayers[0].getBounds());
+                // Calculate and fit the map to the combined bounds of all placemark layers
+                if (placemarkLayers.length > 0) {
+                    const combinedBounds = L.latLngBounds([]);
+                    placemarkLayers.forEach(layer => {
+                        if (layer.getBounds) {
+                            combinedBounds.extend(layer.getBounds());
+                        } else if (layer.getLatLng) {
+                            combinedBounds.extend(layer.getLatLng());
+                        }
+                    });
+                    this.map.fitBounds(combinedBounds);
+                }
 
                 // Populate the KML table
                 this.populateKMLTable();
